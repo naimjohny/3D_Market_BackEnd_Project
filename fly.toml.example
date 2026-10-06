@@ -1,0 +1,41 @@
+# FORMA³ backend — пример конфигурации Fly.io.
+# Скопируйте в fly.toml, поменяйте app/region под себя.
+# Секреты (JWT_SECRET и т.д.) — ТОЛЬКО через `fly secrets set`, не сюда.
+
+app = "forma3d-api"
+primary_region = "ams"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  PORT = "8090"
+  DB_PATH = "/data/forma3d.db"
+  TRUSTED_PROXY = "true"          # Fly-прокси ставит X-Forwarded-For
+  STRIPE_CURRENCY = "usd"
+  PRICE_FX_RATE = "90"
+  # FRONTEND_URL и CORS_ORIGINS — боевые домены (localhost в проде запрещён):
+  FRONTEND_URL = "https://forma3d.example.com"
+  CORS_ORIGINS = "https://forma3d.example.com"
+
+# SQLite живёт на persistent volume (создать: fly volumes create forma3d_data).
+[[mounts]]
+  source = "forma3d_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8090
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  # SQLite = один писатель: держим ровно одну машину (fly scale count 1).
+  min_machines_running = 1
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8090
+    path = "/api/v1/health"
+    interval = "30s"
+    timeout = "5s"
